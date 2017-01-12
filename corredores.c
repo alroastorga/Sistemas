@@ -1,14 +1,19 @@
+
+/**
+ * @author Alvaro Villar Marcos
+ * @author Manuel Ugidos Fernandez
+ * @author Juan Ramon Lastra Diaz
+ * @author Juan Carlos Robles Fernandez
+ */
+
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
-
-/**
- * Capacidad maxima que tiene la pista para alojar los corredores a la vez.
- */
-#define TAM_MAX_CORREDOR 5
+#include <string.h>
+#include <errno.h>
 
 /**
  * Numero de vueltas que se tienen que dar a la pista
@@ -16,29 +21,56 @@
 #define NUM_VUELTAS 5
 
 /**
- * Contador del numero actual de corredores
+ * maxCorredores indica la capacidad maxima que tiene la pista para alojar los corredores a la vez.
+ */
+int maxCorredores;
+
+/**
+ * maxBoxes indica el numero maximo de boxes que contiene la pista.
+ */
+int maxBoxes;
+
+/**
+ * numeroDeCorredor indica el numero que le corresponde a cada corredor
  */
 int numeroDeCorredor;
 
 /**
  * Indica la cantidad de corredores que estan dentro de la pista
  */
-int cantidadDeCorredoresActivos=0;
+int cantidadDeCorredoresActivos;
+
+/**
+ * mejorTimepo[] contiene el tiempo mas rapido en hacer las 5 vueltas en segundos 
+ * y el numero del hilo que lo consiguio.  
+ */
+int mejorTiempo[2];
 
 void init ();
 void nuevoCorredor();
 void* pista(void* );
 
-int main(){
+int main(int argc, char** argv){
 
+  if (argc != 3) {
+
+    printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes");
+    exit(1);
+  }
+
+  else {
+
+    maxCorredores = atoi(argv[1]);
+    maxBoxes = atoi(argv[2]);
+
+  }
       
   signal(SIGUSR1, nuevoCorredor);
   srand(time(NULL));
   init();
       
   while(1){
-        
-        
+         
     sleep(2);
 
   }      
@@ -56,6 +88,8 @@ void init () {
 
   numeroDeCorredor = 0;
   cantidadDeCorredoresActivos = 0;
+  mejorTiempo[0] = 30;
+  mejorTiempo[1] = 0;
 
 }
 
@@ -68,12 +102,11 @@ void nuevoCorredor(){
   signal(SIGUSR1, SIG_IGN);  
   pthread_t corredor;
 
-    if (cantidadDeCorredoresActivos < TAM_MAX_CORREDOR) {
-
+    if (cantidadDeCorredoresActivos < maxCorredores) {
 
       if(pthread_create (&corredor, NULL, pista, &numeroDeCorredor) != 0){
 
-        printf("Error al crear el hilo\n");
+        printf("Error al crear el hilo. %s\n", strerror(errno));
 
       }
 
@@ -87,7 +120,6 @@ void nuevoCorredor(){
 
     }
 
-  
   signal(SIGUSR1, nuevoCorredor);
 
 }
@@ -98,7 +130,6 @@ void nuevoCorredor(){
  */
 void *pista(void* parametro){
 
-      
   /**
    * Contiene el numero de vuetas que lleva el corredor.
    */
@@ -112,15 +143,31 @@ void *pista(void* parametro){
   /**
    * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente. 
    * El tiempo de vuelta por pista se calcula cogiendo un numero aleatorio entre 2 y 5.
+   * Una vez acabada la carrera, se mira si ha rebajado la marca establecida
    */
-  int tiempoPorVuelta;
+  int tiempoPorVuelta = 0;
+
+  /**
+   * tiempoTotal contiene el tiempo que ha tardado el corredor en dar las 5 vueltas.
+   */
+  int tiempoTotal = 0;
 
   while (numeroDeVueltas < NUM_VUELTAS) {
 
     tiempoPorVuelta = rand()%3+2;
+    tiempoTotal = tiempoTotal + tiempoPorVuelta;
     sleep(tiempoPorVuelta);
     numeroDeVueltas++;
     
+  }
+
+  if (tiempoTotal < mejorTiempo[0]) {
+
+    mejorTiempo[0] = tiempoTotal;
+    mejorTiempo[1] = numeroCorredor;
+
+    printf("Ha mejorado la marca el corredor %d con %d segundos\n", mejorTiempo[1], mejorTiempo[0]);
+
   }
 
   printf("El corredor numero %d ha acabado la carrera.\n", numeroCorredor);
