@@ -11,6 +11,11 @@
 #define TAM_MAX_CORREDOR 5
 
 /**
+ * Numero de vueltas que se tienen que dar a la pista
+ */
+#define NUM_VUELTAS 5
+
+/**
  * Contador del numero actual de corredores
  */
 int numeroDeCorredor;
@@ -82,7 +87,7 @@ void nuevoCorredor(){
 
     }
 
-  /*Asociamos de nuevo la señal SIGUSR1 con la función nuevoCorredor*/
+  
   signal(SIGUSR1, nuevoCorredor);
 
 }
@@ -102,14 +107,15 @@ void *pista(void* parametro){
   /**
    * Contiene el nuero que ha sido asignado al corredor. 
    */
-    int numeroCorredor = *(int*)parametro;
+  int numeroCorredor = *(int*)parametro;
 
   /**
    * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente. 
+   * El tiempo de vuelta por pista se calcula cogiendo un numero aleatorio entre 2 y 5.
    */
   int tiempoPorVuelta;
 
-  while (numeroDeVueltas<5) {
+  while (numeroDeVueltas < NUM_VUELTAS) {
 
     tiempoPorVuelta = rand()%3+2;
     sleep(tiempoPorVuelta);
