@@ -16,9 +16,37 @@
 #include <errno.h>
 
 /**
+ * corredor es la estructura que tiene un corredor.
+ * id contiene el id que representa a cada corredor.
+ * numero es el numero que ha sido asignado a cada corredor.
+ * siguiente contiene la direccion de memoria del corredor que entrara despues.
+ */
+struct corredor {
+
+  char id[13];
+  int numero;
+  struct corredor* siguiente;
+
+} corredor;
+
+/**
+ * listaCorredores lista en la que se alojan los corredores.
+ * cabeza contiene la direccion de memoria del primer corredor en entrar a la pista.
+ * cola contiene la direccion de memoria del ultimo corredor que ha entrado en la pista.
+ */
+struct listaCorredores {
+
+  struct corredor* cabeza;
+  struct corredor* cola;
+  
+} listaCorredores;
+
+/**
  * Numero de vueltas que se tienen que dar a la pista
  */
 #define NUM_VUELTAS 5
+
+struct listaCorredores;
 
 /**
  * maxCorredores indica la capacidad maxima que tiene la pista para alojar los corredores a la vez.
@@ -67,6 +95,7 @@ int main(int argc, char** argv){
       
   signal(SIGUSR1, nuevoCorredor);
   srand(time(NULL));
+
   init();
       
   while(1){
@@ -86,10 +115,76 @@ int main(int argc, char** argv){
  */
 void init () {
 
-  numeroDeCorredor = 0;
+  numeroDeCorredor = 1;
   cantidadDeCorredoresActivos = 0;
   mejorTiempo[0] = 30;
   mejorTiempo[1] = 0;
+  listaCorredores.cabeza = NULL;
+  listaCorredores.cola = NULL;
+}
+
+/**
+ * aniadirCorredor añade en la cola un nuevo corredor pasador por parametro
+ */
+void aniadirCorredor (struct corredor* nuevoCorredor) {
+
+  if (listaCorredores.cabeza == NULL) {
+
+    listaCorredores.cabeza = nuevoCorredor;
+    listaCorredores.cola = nuevoCorredor;
+    nuevoCorredor->siguiente = NULL;
+
+  }
+
+  else {
+
+    listaCorredores.cola->siguiente = nuevoCorredor;
+    nuevoCorredor->siguiente = NULL;
+
+  }
+
+}
+
+/**
+ * eliminarCorredor elimina el corredor pasador por parametro de la lista de corredores
+ */
+void eliminarCorredor (struct corredor* corredorAEliminar) {
+
+  struct corredor* aux;
+
+  if (listaCorredores.cabeza == corredorAEliminar) {
+
+    listaCorredores.cabeza = listaCorredores.cabeza->siguiente;
+
+  }
+
+  else if (listaCorredores.cola == corredorAEliminar) {
+
+    aux = listaCorredores.cabeza;
+
+    while (aux->siguiente != corredorAEliminar) {
+
+      aux = aux->siguiente;
+
+    }
+
+    aux->siguiente = NULL;
+
+  }
+
+  else {
+
+    aux = listaCorredores.cabeza;
+
+    while (aux->siguiente != corredorAEliminar) {
+
+      aux->siguiente = corredorAEliminar->siguiente;
+
+    }
+
+  }
+
+  free(corredorAEliminar);
 
 }
 
@@ -100,21 +195,33 @@ void init () {
 void nuevoCorredor(){
     
   signal(SIGUSR1, SIG_IGN);  
-  pthread_t corredor;
 
     if (cantidadDeCorredoresActivos < maxCorredores) {
 
-      if(pthread_create (&corredor, NULL, pista, &numeroDeCorredor) != 0){
+      pthread_t corredor;
+      struct corredor nCorredor;
+      char id[13];
+      int numero;
+      char c_numero[3];
+
+      sprintf(c_numero, "%d", numero);
+      strcpy(id, "corredor_");
+      strcat(id, c_numero);
+      strcat(nCorredor.id, id);
+
+      if(pthread_create (&corredor, NULL, pista, &nCorredor) != 0){
 
         printf("Error al crear el hilo. %s\n", strerror(errno));
 
       }
 
       else {
-
-        cantidadDeCorredoresActivos++;
+        
+        nCorredor.numero = numeroDeCorredor;
         numeroDeCorredor++;
-        printf("El corredor numero %d ha entrado en pista.\n", numeroDeCorredor);
+        cantidadDeCorredoresActivos++;
+        aniadirCorredor(&nCorredor);
+        printf("El corredor %d ha entrado en pista.\n", nCorredor.numero);
 
       }
 
@@ -130,15 +237,12 @@ void nuevoCorredor(){
  */
 void *pista(void* parametro){
 
+  struct corredor nCorredor = *(struct corredor*)parametro;
+
   /**
    * Contiene el numero de vuetas que lleva el corredor.
    */
   int numeroDeVueltas = 0;
-
-  /**
-   * Contiene el nuero que ha sido asignado al corredor. 
-   */
-  int numeroCorredor = *(int*)parametro;
 
   /**
    * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente. 
@@ -164,14 +268,15 @@ void *pista(void* parametro){
   if (tiempoTotal < mejorTiempo[0]) {
 
     mejorTiempo[0] = tiempoTotal;
-    mejorTiempo[1] = numeroCorredor;
+    mejorTiempo[1] = nCorredor.numero;
 
     printf("Ha mejorado la marca el corredor %d con %d segundos\n", mejorTiempo[1], mejorTiempo[0]);
 
   }
 
-  printf("El corredor numero %d ha acabado la carrera.\n", numeroCorredor);
+  printf("El corredor %d ha acabado la carrera.\n", nCorredor.numero);
   cantidadDeCorredoresActivos--;
+  eliminarCorredor(&nCorredor);
     
 }
 
