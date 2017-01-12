@@ -2,56 +2,123 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 
-void nuevoCorredor();
-void* accionesCorredor(void* );
+/**
+ * Capacidad maxima que tiene la pista para alojar los corredores a la vez.
+ */
+#define TAM_MAX_CORREDOR 5
 
-/*Array de 5 hilos uno por corredor maximo que se puede crear*/
-pthread_t corredor[5];
-/*Contador del numero actual de corredores*/
+/**
+ * Contador del numero actual de corredores
+ */
 int numeroDeCorredor;
+
+/**
+ * Indica la cantidad de corredores que estan dentro de la pista
+ */
+int cantidadDeCorredoresActivos=0;
+
+void init ();
+void nuevoCorredor();
+void* pista(void* );
 
 int main(){
 
-  /*Asociar la señal SIGUSR1 a la función que crea un nuevo corredor*/
+      
   signal(SIGUSR1, nuevoCorredor);
+  srand(time(NULL));
+  init();
+      
+  while(1){
+        
+        
+    sleep(2);
 
-  /*Inicializar corredores*/
-  numeroDeCorredor = 0;
+  }      
 
-  /*(ELIMINAR)IMPRIMIR PID DEL PROCESO Y PAUSAR PROCESO PARA MANDARLE LA SEÑAL(ELIMINAR)*/
-  printf("pid %d\n", getpid());
-  pause();
+  pthread_exit(NULL);
+
+  return 0;
 
 }
 
+/**
+ * Inicializa todas las variables globales.
+ */
+void init () {
 
+  numeroDeCorredor = 0;
+  cantidadDeCorredoresActivos = 0;
+
+}
+
+/**
+ * Crea un nuevo corredor asignandole el numero que le corresponda.
+ * Si ya hay 5 corredores activos en pista ignora la senal.
+ */
 void nuevoCorredor(){
-  /*Mientras se crea un corredor se ignora la señal de crear uno nuevo*/
-  signal(SIGUSR1, SIG_IGN);
+    
+  signal(SIGUSR1, SIG_IGN);  
+  pthread_t corredor;
 
-  /*(EN CONSTRUCCION)COMPROBAR QUE NO HAYA YA 5 CORREDORES Y CREAR UN NUEVO CORREDOR(EN CONSTRUCCION)*/
-  if(numeroDeCorredor < 4){
-    /*Crear un hilo que simula un corredor y actualizar contador de corredores*/
-    corredor[numeroDeCorredor] = numeroDeCorredor;
-    numeroDeCorredor++;
+    if (cantidadDeCorredoresActivos < TAM_MAX_CORREDOR) {
 
-    int ret = pthread_create (&corredor[numeroDeCorredor], NULL, accionesCorredor, NULL);
-    if(ret!=0){
-      printf("Error al crear el hilo\n");
-    }else{
-      printf("Hilo creado\n");
+
+      if(pthread_create (&corredor, NULL, pista, &numeroDeCorredor) != 0){
+
+        printf("Error al crear el hilo\n");
+
+      }
+
+      else {
+
+        cantidadDeCorredoresActivos++;
+        numeroDeCorredor++;
+        printf("El corredor numero %d ha entrado en pista.\n", numeroDeCorredor);
+
+      }
+
     }
-
-  }
 
   /*Asociamos de nuevo la señal SIGUSR1 con la función nuevoCorredor*/
   signal(SIGUSR1, nuevoCorredor);
 
 }
 
-/*(ERROR)NO LLEGA A EJECUTAR LA FUNCION PERO EL HILO SE CREA...(ERROR)*/
-void *accionesCorredor(void* parametro){
-  printf("Soy un corredor");
-  return 0;
+/**
+ * Cada corredor guarda su numero asignado, da 5 vueltas a la pista y sale
+ * dejando un hueco libre.
+ */
+void *pista(void* parametro){
+
+      
+  /**
+   * Contiene el numero de vuetas que lleva el corredor.
+   */
+  int numeroDeVueltas = 0;
+
+  /**
+   * Contiene el nuero que ha sido asignado al corredor. 
+   */
+    int numeroCorredor = *(int*)parametro;
+
+  /**
+   * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente. 
+   */
+  int tiempoPorVuelta;
+
+  while (numeroDeVueltas<5) {
+
+    tiempoPorVuelta = rand()%3+2;
+    sleep(tiempoPorVuelta);
+    numeroDeVueltas++;
+    
+  }
+
+  printf("El corredor numero %d ha acabado la carrera.\n", numeroCorredor);
+  cantidadDeCorredoresActivos--;
+    
 }
+
