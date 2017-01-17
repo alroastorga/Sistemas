@@ -16,6 +16,18 @@
 #include <errno.h>
 
 /**
+ * mejorTiempo es la estructura que contiene la mejor marca de toda la carrera.
+ * idCorredor contiene el id de corredor.
+ * tiempo contiene el tiempo que marco el corredor.
+ */
+struct mejorTiempo {
+
+  char idCorredor[13];
+  int tiempo;
+
+} mejorTiempo;
+
+/**
  * corredor es la estructura que tiene un corredor.
  * id contiene el id que representa a cada corredor.
  * numero es el numero que ha sido asignado a cada corredor.
@@ -41,12 +53,13 @@ struct listaCorredores {
   
 } listaCorredores;
 
+struct listaCorredores;
+struct mejorMarca;
+
 /**
  * Numero de vueltas que se tienen que dar a la pista
  */
 #define NUM_VUELTAS 5
-
-struct listaCorredores;
 
 /**
  * maxCorredores indica la capacidad maxima que tiene la pista para alojar los corredores a la vez.
@@ -69,12 +82,13 @@ int numeroDeCorredor;
 int cantidadDeCorredoresActivos;
 
 /**
- * mejorTimepo[] contiene el tiempo mas rapido en hacer las 5 vueltas en segundos 
- * y el numero del hilo que lo consiguio.  
+ * mutexListaCorredores controla las modificaciones de la lista
  */
-int mejorTiempo[2];
+pthread_mutex_t mutexListaCorredores;
 
 void init ();
+void aniadirCorredor (struct corredor* nuevoCorredor);
+void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
 void* pista(void* );
 
@@ -117,16 +131,18 @@ void init () {
 
   numeroDeCorredor = 1;
   cantidadDeCorredoresActivos = 0;
-  mejorTiempo[0] = 30;
-  mejorTiempo[1] = 0;
+  mejorTiempo.tiempo = 100;
   listaCorredores.cabeza = NULL;
   listaCorredores.cola = NULL;
+
 }
 
 /**
  * aniadirCorredor añade en la cola un nuevo corredor pasador por parametro
  */
 void aniadirCorredor (struct corredor* nuevoCorredor) {
+
+  pthread_mutex_lock(&mutexListaCorredores);
 
   if (listaCorredores.cabeza == NULL) {
 
@@ -139,9 +155,12 @@ void aniadirCorredor (struct corredor* nuevoCorredor) {
   else {
 
     listaCorredores.cola->siguiente = nuevoCorredor;
+    listaCorredores.cola = nuevoCorredor;
     nuevoCorredor->siguiente = NULL;
 
   }
+
+  pthread_mutex_unlock(&mutexListaCorredores);
 
 }
 
@@ -150,10 +169,12 @@ void aniadirCorredor (struct corredor* nuevoCorredor) {
  */
 void eliminarCorredor (struct corredor* corredorAEliminar) {
 
+  pthread_mutex_lock(&mutexListaCorredores);
+
   struct corredor* aux;
 
   if (listaCorredores.cabeza == corredorAEliminar) {
-
+    
     listaCorredores.cabeza = listaCorredores.cabeza->siguiente;
 
   }
@@ -168,6 +189,7 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
 
     }
 
+    listaCorredores.cola = aux;
     aux->siguiente = NULL;
 
   }
@@ -176,15 +198,19 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
 
     aux = listaCorredores.cabeza;
 
-    while (aux->siguiente != corredorAEliminar) {
-
-      aux->siguiente = corredorAEliminar->siguiente;
+    while ((aux->siguiente != corredorAEliminar) && (aux->siguiente != NULL)) {
+   
+      aux = aux->siguiente;
 
     }
+
+    aux->siguiente = corredorAEliminar->siguiente;
 
   }
 
   free(corredorAEliminar);
+
+  pthread_mutex_unlock(&mutexListaCorredores);
 
 }
 
@@ -198,18 +224,22 @@ void nuevoCorredor(){
 
     if (cantidadDeCorredoresActivos < maxCorredores) {
 
-      pthread_t corredor;
-      struct corredor nCorredor;
+      pthread_t hcorredor;
+      struct corredor* nCorredor;
       char id[13];
       int numero;
       char c_numero[3];
 
-      sprintf(c_numero, "%d", numero);
+      nCorredor = (struct corredor*)malloc(sizeof(struct corredor));
+
+      sprintf(c_numero, "%d", numeroDeCorredor);
       strcpy(id, "corredor_");
       strcat(id, c_numero);
-      strcat(nCorredor.id, id);
+      strcpy(nCorredor->id, id);
 
-      if(pthread_create (&corredor, NULL, pista, &nCorredor) != 0){
+      nCorredor->numero = numeroDeCorredor;
+
+      if(pthread_create (&hcorredor, NULL, pista, nCorredor) != 0){
 
         printf("Error al crear el hilo. %s\n", strerror(errno));
 
@@ -217,11 +247,11 @@ void nuevoCorredor(){
 
       else {
         
-        nCorredor.numero = numeroDeCorredor;
+        
         numeroDeCorredor++;
         cantidadDeCorredoresActivos++;
-        aniadirCorredor(&nCorredor);
-        printf("El corredor %d ha entrado en pista.\n", nCorredor.numero);
+        aniadirCorredor(nCorredor);
+        printf("%s ha entrado en pista.\n", nCorredor->id);
 
       }
 
@@ -237,7 +267,10 @@ void nuevoCorredor(){
  */
 void *pista(void* parametro){
 
-  struct corredor nCorredor = *(struct corredor*)parametro;
+  /**
+   * nCorredor contiene el corredor que le ha sido asignado al hilo
+   */
+  struct corredor* nCorredor = (struct corredor*)parametro;
 
   /**
    * Contiene el numero de vuetas que lleva el corredor.
@@ -256,27 +289,40 @@ void *pista(void* parametro){
    */
   int tiempoTotal = 0;
 
+  /**
+   * entrarEnBoxes si su valor es 1 entra en boxes, si no continua en pista.
+   */
+  int entrarEnBoxes = 0;
+
   while (numeroDeVueltas < NUM_VUELTAS) {
 
     tiempoPorVuelta = rand()%3+2;
     tiempoTotal = tiempoTotal + tiempoPorVuelta;
     sleep(tiempoPorVuelta);
+
+    entrarEnBoxes = rand()%2;
+    if (entrarEnBoxes == 1) {
+
+      // añadimos a la cola de boxes
+
+    }
+
     numeroDeVueltas++;
     
   }
 
-  if (tiempoTotal < mejorTiempo[0]) {
+  if (tiempoTotal < mejorTiempo.tiempo) {
 
-    mejorTiempo[0] = tiempoTotal;
-    mejorTiempo[1] = nCorredor.numero;
+    strcpy(mejorTiempo.idCorredor, nCorredor->id);
+    mejorTiempo.tiempo = tiempoTotal;
 
-    printf("Ha mejorado la marca el corredor %d con %d segundos\n", mejorTiempo[1], mejorTiempo[0]);
+    printf("%s ha mejorado la marca con %d segundos\n", mejorTiempo.idCorredor, mejorTiempo.tiempo);
 
   }
 
-  printf("El corredor %d ha acabado la carrera.\n", nCorredor.numero);
+  printf("%s ha acabado la carrera.\n", nCorredor->id);
+  eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
-  eliminarCorredor(&nCorredor);
-    
+
 }
 
