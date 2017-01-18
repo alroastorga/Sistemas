@@ -15,6 +15,7 @@
 #include <string.h>
 #include <errno.h>
 
+
 /**
  * mejorTiempo es la estructura que contiene la mejor marca de toda la carrera.
  * idCorredor contiene el id de corredor.
@@ -86,17 +87,28 @@ int cantidadDeCorredoresActivos;
  */
 pthread_mutex_t mutexListaCorredores;
 
+/**
+ * mutexLog controla las entradas en el log.
+ */
+pthread_mutex_t mutexLog;
+
+/**
+ * puntero que apunta al fichero registroTiempos.log
+ */
+FILE *logFile;
+
 void init ();
 void aniadirCorredor (struct corredor* nuevoCorredor);
 void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
 void* pista(void* );
+void writeLogMessage(char *id, char *msg);
 
 int main(int argc, char** argv){
 
   if (argc != 3) {
 
-    printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes");
+    printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes\n");
     exit(1);
   }
 
@@ -251,8 +263,11 @@ void nuevoCorredor(){
         numeroDeCorredor++;
         cantidadDeCorredoresActivos++;
         aniadirCorredor(nCorredor);
-        printf("%s ha entrado en pista.\n", nCorredor->id);
-
+        //printf("%s ha entrado en pista.\n", nCorredor->id);
+        
+        
+        writeLogMessage(nCorredor->id, "Entra en el circuito");
+        
       }
 
     }
@@ -325,4 +340,26 @@ void *pista(void* parametro){
   cantidadDeCorredoresActivos--;
 
 }
+
+
+void writeLogMessage(char *id, char *msg) {
+   
+   pthread_mutex_lock(&mutexLog);
+
+   // Calculamos la hora actual
+   time_t now = time(0);
+   struct tm *tlocal = localtime(&now);
+   char stnow[19];
+   strftime(stnow, 19, "%d/%m/%y  %H:%M:%S", tlocal);
+
+   // Escribimos en el log
+   logFile = fopen("registroTiempos.log", "a");
+   fprintf(logFile, "[%s] %s: %s\n", stnow, id, msg);
+   fclose(logFile);
+
+   pthread_mutex_unlock(&mutexLog);
+   
+}
+
+
 
