@@ -322,9 +322,29 @@ void *pista(void* parametro){
 
     }
 
-    numeroDeVueltas++;
+    numeroDeVueltas++;  
+    
+    // El corredor termina una vuelta.
+    
+    char mensaje[50], tiempoVuelta[50], numVuelta[50];
+
+    sprintf(numVuelta, "%d", numeroDeVueltas);
+    sprintf(tiempoVuelta, "%d", tiempoPorVuelta);
+
+    strcpy(mensaje, "Termina la vuelta ");
+    strcat(mensaje, numVuelta);
+    strcat(mensaje, " en ");
+    strcat(mensaje, tiempoVuelta);
+    strcat(mensaje, " segundos.");
+    
+    writeLogMessage(nCorredor->id, mensaje);
     
   }
+
+   // El corredor termina la carrera (da 5 vueltas)
+   
+   writeLogMessage(nCorredor->id, "Abandona el circuito");
+
 
   if (tiempoTotal < mejorTiempo.tiempo) {
 
@@ -335,7 +355,8 @@ void *pista(void* parametro){
 
   }
 
-  printf("%s ha acabado la carrera.\n", nCorredor->id);
+  //printf("%s ha acabado la carrera.\n", nCorredor->id);
+ 
   eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
 
