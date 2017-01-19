@@ -58,7 +58,7 @@ struct listaCorredores {
 
   struct corredor* cabeza;
   struct corredor* cola;
-  
+
 } listaCorredores;
 
 struct listaCorredores;
@@ -139,6 +139,7 @@ void* juez (void*);
 void crearJuez();
 
 void writeLogMessage(char *id, char *msg);
+void finPrograma();
 void aumentarCorredores();
 void aumentarBoxes ();
 
@@ -156,20 +157,25 @@ int main(int argc, char** argv){
     maxBoxes = atoi(argv[2]);
 
   }
-      
+
   signal(SIGUSR1, nuevoCorredor);
   signal(SIGUSR2, aumentarCorredores);
   signal(SIGVTALRM, aumentarBoxes);
   srand(time(NULL));
 
+  signal(SIGINT, finPrograma);
+
   init();
+<<<<<<< HEAD
   crearJuez();
+=======
+>>>>>>> 66d6ea79d968a8b7e5fcef32fd8454fb9bbea7d3
 
   while(1){
-         
+
     sleep(2);
 
-  }      
+  }
 
   pthread_exit(NULL);
 
@@ -187,6 +193,11 @@ void init () {
   mejorTiempo.tiempo = 100;
   listaCorredores.cabeza = NULL;
   listaCorredores.cola = NULL;
+
+  /**
+  * borra el fichero registroTiempos, si existe.
+  */
+  remove("registroTiempos.log");
 
 }
 
@@ -248,7 +259,7 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
   struct corredor* aux;
 
   if (listaCorredores.cabeza == corredorAEliminar) {
-    
+
     listaCorredores.cabeza = listaCorredores.cabeza->siguiente;
 
   }
@@ -273,7 +284,7 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
     aux = listaCorredores.cabeza;
 
     while ((aux->siguiente != corredorAEliminar) && (aux->siguiente != NULL)) {
-   
+
       aux = aux->siguiente;
 
     }
@@ -293,8 +304,8 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
  * Si ya hay 5 corredores activos en pista ignora la senal.
  */
 void nuevoCorredor(){
-    
-  signal(SIGUSR1, SIG_IGN);  
+
+  signal(SIGUSR1, SIG_IGN);
 
     if (cantidadDeCorredoresActivos < maxCorredores) {
 
@@ -320,16 +331,16 @@ void nuevoCorredor(){
       }
 
       else {
-        
-        
+
+
         numeroDeCorredor++;
         cantidadDeCorredoresActivos++;
         aniadirCorredor(nCorredor);
         //printf("%s ha entrado en pista.\n", nCorredor->id);
-        
-        
+
+
         writeLogMessage(nCorredor->id, "Entra en el circuito");
-        
+
       }
 
     }
@@ -355,7 +366,7 @@ void *pista(void* parametro){
   int numeroDeVueltas = 0;
 
   /**
-   * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente. 
+   * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente.
    * El tiempo de vuelta por pista se calcula cogiendo un numero aleatorio entre 2 y 5.
    * Una vez acabada la carrera, se mira si ha rebajado la marca establecida
    */
@@ -384,10 +395,10 @@ void *pista(void* parametro){
 
     }
 
-    numeroDeVueltas++;  
-    
+    numeroDeVueltas++;
+
     // El corredor termina una vuelta.
-    
+
     char mensaje[50], tiempoVuelta[50], numVuelta[50];
 
     sprintf(numVuelta, "%d", numeroDeVueltas);
@@ -398,13 +409,13 @@ void *pista(void* parametro){
     strcat(mensaje, " en ");
     strcat(mensaje, tiempoVuelta);
     strcat(mensaje, " segundos.");
-    
+
     writeLogMessage(nCorredor->id, mensaje);
-    
+
   }
 
    // El corredor termina la carrera (da 5 vueltas)
-   
+
    writeLogMessage(nCorredor->id, "Abandona el circuito");
 
 
@@ -418,7 +429,7 @@ void *pista(void* parametro){
   }
 
   //printf("%s ha acabado la carrera.\n", nCorredor->id);
- 
+
   eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
 
@@ -499,7 +510,7 @@ void compruebaCorredorSancion(){
 
 
 void writeLogMessage(char *id, char *msg) {
-   
+
    pthread_mutex_lock(&mutexLog);
 
    // Calculamos la hora actual
@@ -514,8 +525,32 @@ void writeLogMessage(char *id, char *msg) {
    fclose(logFile);
 
    pthread_mutex_unlock(&mutexLog);
-   
+
 }
 
+/**
+* finPrograma captura la señal SIGINT cuando se pulsa Ctrl+C y
+* escribe en el fichero de log el ganador de la carrera y el número de corredores
+* que han participado.
+*/
+void finPrograma() {
 
+  if (signal(SIGINT, finPrograma) == SIG_ERR) {
+    printf("Error en la llamada a signal\n");
+  }
 
+  if (numeroDeCorredor > 0) {
+
+    char corredores[15];
+    sprintf(corredores, "%d", (numeroDeCorredor-1));
+
+    writeLogMessage(mejorTiempo.idCorredor, "Ha ganado la carrera");
+    writeLogMessage("Número de corredores", corredores);
+
+  }
+  //printf("Ganador se la carrera: %s\n", mejorTiempo.idCorredor);
+  //printf("Número de corredires: %d\n", (numeroDeCorredor-1));
+
+  exit(0);
+
+}
