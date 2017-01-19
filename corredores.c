@@ -166,10 +166,8 @@ int main(int argc, char** argv){
   signal(SIGINT, finPrograma);
 
   init();
-<<<<<<< HEAD
+
   crearJuez();
-=======
->>>>>>> 66d6ea79d968a8b7e5fcef32fd8454fb9bbea7d3
 
   while(1){
 
