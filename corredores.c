@@ -110,7 +110,7 @@ void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
 void* pista(void* );
 void writeLogMessage(char *id, char *msg);
-void aumentarCorredor();
+void aumentarCorredores();
 void aumentarBoxes ();
 
 int main(int argc, char** argv){
@@ -129,7 +129,7 @@ int main(int argc, char** argv){
   }
       
   signal(SIGUSR1, nuevoCorredor);
-  signal(SIGUSR2, aumentarCorredor);
+  signal(SIGUSR2, aumentarCorredores);
   signal(SIGVTALRM, aumentarBoxes);
   srand(time(NULL));
 
@@ -160,13 +160,13 @@ void init () {
 
 }
 
-void aumentarCorredor () {
+void aumentarCorredores () {
 
   signal(SIGUSR2, SIG_IGN);
 
   maxCorredores++;
 
-  signal(SIGUSR2, aumentarCorredor);
+  signal(SIGUSR2, aumentarCorredores);
 
 }
 
