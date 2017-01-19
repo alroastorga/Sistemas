@@ -6,6 +6,13 @@
  * @author Juan Carlos Robles Fernandez
  */
 
+/**
+ * Para aumentar el numero maximo de corredores con el programa en ejecucion se ha modificado
+ * la señal SIGUSR2.
+ * Para aumentar el numero maximo de boxes con el programa en ejecucion se ha modificado la
+ * la señal SIGVTALRM.
+ */
+
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
@@ -104,6 +111,8 @@ void nuevoCorredor();
 void* pista(void* );
 void writeLogMessage(char *id, char *msg);
 void finPrograma();
+void aumentarCorredores();
+void aumentarBoxes ();
 
 int main(int argc, char** argv){
 
@@ -121,6 +130,8 @@ int main(int argc, char** argv){
   }
 
   signal(SIGUSR1, nuevoCorredor);
+  signal(SIGUSR2, aumentarCorredores);
+  signal(SIGVTALRM, aumentarBoxes);
   srand(time(NULL));
 
   signal(SIGINT, finPrograma);
@@ -154,6 +165,27 @@ void init () {
   * borra el fichero registroTiempos, si existe.
   */
   remove("registroTiempos.log");
+
+}
+
+void aumentarCorredores () {
+
+  signal(SIGUSR2, SIG_IGN);
+
+  maxCorredores++;
+
+  signal(SIGUSR2, aumentarCorredores);
+
+}
+
+void aumentarBoxes () {
+
+  signal(SIGVTALRM, SIG_IGN);
+
+  maxBoxes++;
+  /*AÑADIR UN NUEVO BOX A LA LISTA*/
+
+  signal(SIGVTALRM, aumentarBoxes);
 
 }
 
