@@ -81,16 +81,43 @@ int numeroDeCorredor;
  */
 int cantidadDeCorredoresActivos;
 
+
+/*
+ *Obtiene el valor del corredor que será penalizado.
+ */
+char penalizador[13];
+
+
+
+/*********************/
+/********************/
+
+int variable_comprobadora;
+
+/*******************/
+/******************/
+
+/*Variable para que se comiencen a probar si ha sido sancionado.*/
+
+int corredorCompruebaEntrada;
+int sancionJuez;
+/*El juez está listo para sancionar.*/
+
+/*Se crea la condicion del hilo.*/
+pthread_cond_t condicion;
 /**
  * mutexListaCorredores controla las modificaciones de la lista
  */
 pthread_mutex_t mutexListaCorredores;
+pthread_mutex_t mutexJuez;
 
 void init ();
 void aniadirCorredor (struct corredor* nuevoCorredor);
 void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
 void* pista(void* );
+void* juez (void*);
+void crearJuez();
 
 int main(int argc, char** argv){
 
@@ -111,7 +138,8 @@ int main(int argc, char** argv){
   srand(time(NULL));
 
   init();
-      
+  crearJuez();
+
   while(1){
          
     sleep(2);
@@ -303,7 +331,7 @@ void *pista(void* parametro){
     entrarEnBoxes = rand()%2;
     if (entrarEnBoxes == 1) {
 
-      // añadimos a la cola de boxes
+      /* añadimos a la cola de boxes*/
 
     }
 
@@ -325,4 +353,77 @@ void *pista(void* parametro){
   cantidadDeCorredoresActivos--;
 
 }
+  /*
+   *Parte del programa que penaliza a los corredores
+   *Dormir en cuanto el juez despierte bloquear el mutex, crear el numero aleatorio
+   *esperar a que todos los corredores estén esperando y que cada corredor compruebe si es su número.
+   */
+
+
+/*Comportamiento del juez*/
+
+void crearJuez(){
+  pthread_t hjuez;
+
+  if (pthread_create (&hjuez, NULL, juez, NULL) != 0){
+    printf("Error al crear el hilo juez %s\n ",strerror (errno));
+  }
+  	else ("Se ha creado el juez: \n");
+
+
+}
+
+void *juez(void* parametro){
+ while(1){ 
+ 	
+ 	struct corredor *aux;
+ 	/*Cada corredor comprueba si ha sido sancionado.*/
+ 	sancionJuez = 0;
+ 	corredorCompruebaEntrada = 0;
+
+
+ /*Se inicializan las cosas de inicializar*/
+
+
+  sleep(10);
+
+
+  pthread_cond_wait (&condicion, &mutexJuez);
+
+
+
+ /*int a = *(int*)parametro;*/
+  int enteroConvertible = rand()%cantidadDeCorredoresActivos+1;
+  int i;
+  
+  /*recorres lista*/
+
+  aux=listaCorredores.cabeza;
+  for(i=1;i<cantidadDeCorredoresActivos;i++){
+    aux=aux->siguiente; 
+
+  }
+ variable_comprobadora = aux->numero;
+
+
+  }
+}
+
+
+void compruebaCorredorSancion(){
+	pthread_mutex_lock(&mutexJuez);
+	
+
+	if (++corredorCompruebaEntrada >= cantidadDeCorredoresActivos){
+		pthread_cond_signal (&condicion);
+	}
+	/*Los corredores comprueban si su número coincide con el que ha
+	 *sancionado el juez, de ser así el corredor que ha sido sancionado tendrá dormir tres segundos*/
+
+		pthread_mutex_unlock (&mutexJuez);
+}
+
+
+
+
 
