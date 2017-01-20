@@ -382,7 +382,7 @@ void *pista(void* parametro){
 
   while (numeroDeVueltas < NUM_VUELTAS) {
 
-    tiempoPorVuelta = rand()%3+2;
+    tiempoPorVuelta = rand()%4+2;
     tiempoTotal = tiempoTotal + tiempoPorVuelta;
     sleep(tiempoPorVuelta);
 
@@ -453,8 +453,8 @@ void crearJuez(){
 }
 
 void *juez(void* parametro){
- while(1){ 
- 	
+ while(1){
+
  	struct corredor *aux;
  	/*Cada corredor comprueba si ha sido sancionado.*/
  	sancionJuez = 0;
@@ -463,35 +463,32 @@ void *juez(void* parametro){
 
  /*Se inicializan las cosas de inicializar*/
 
-
   sleep(10);
 
-
   pthread_cond_wait (&condicion, &mutexJuez);
-
-
 
  /*int a = *(int*)parametro;*/
   int enteroConvertible = rand()%cantidadDeCorredoresActivos+1;
   int i;
-  
+
   /*recorres lista*/
 
   aux=listaCorredores.cabeza;
   for(i=1;i<cantidadDeCorredoresActivos;i++){
-    aux=aux->siguiente; 
+    aux=aux->siguiente;
 
   }
- variable_comprobadora = aux->numero;
+  variable_comprobadora = aux->numero;
 
-
+  printf("El juez sanciona al corredor: %s", aux->id);
+  
   }
 }
 
 
 void compruebaCorredorSancion(){
 	pthread_mutex_lock(&mutexJuez);
-	
+
 
 	if (++corredorCompruebaEntrada >= cantidadDeCorredoresActivos){
 		pthread_cond_signal (&condicion);
@@ -501,10 +498,6 @@ void compruebaCorredorSancion(){
 
 		pthread_mutex_unlock (&mutexJuez);
 }
-
-
-
-
 
 
 void writeLogMessage(char *id, char *msg) {
