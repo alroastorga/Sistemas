@@ -730,6 +730,7 @@ void *pista(void* parametro){
 
     writeLogMessage(nCorredor->id, mensaje);
 
+    pthread_exit(NULL);
 
   }
 
