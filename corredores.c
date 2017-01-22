@@ -760,8 +760,6 @@ void *pista(void* parametro){
     writeLogMessage(nCorredor->id, mensaje);
     //printf("%s: %s\n", nCorredor->id, mensaje);
 
-    pthread_exit(NULL);
-
   }
 
    // El corredor termina la carrera (da 5 vueltas)
