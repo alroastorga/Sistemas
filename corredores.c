@@ -10,7 +10,8 @@
  * Para aumentar el numero maximo de corredores con el programa en ejecucion se ha modificado
  * la señal SIGUSR2.
  * Para aumentar el numero maximo de boxes con el programa en ejecucion se ha modificado la
- * la señal SIGVTALRM.
+ * la señal SIGALRM.
+ * Para terminar el programa se debe de mandar la señal SIGINT.
  */
 
 #include <stdio.h>
@@ -167,8 +168,9 @@ int variable_comprobadora;
 /*Variable para que se comiencen a probar si ha sido sancionado.*/
 
 int corredorCompruebaEntrada;
-int sancionJuez;
+
 /*El juez está listo para sancionar.*/
+int sancionJuez;
 
 /*Se crea la condicion del hilo.*/
 pthread_cond_t condicion;
@@ -186,6 +188,8 @@ int seCierra;
  * mutexListaCorredores controla las modificaciones de la lista
  */
 pthread_mutex_t mutexListaCorredores;
+
+/*Mutex que controla al juez*/
 pthread_mutex_t mutexJuez;
 
 /**
@@ -220,26 +224,26 @@ pthread_mutex_t mutexBoxesCerrados;
 
 
 void init ();
+void aumentarCorredores();
+void aumentarBoxes ();
 void aniadirCorredor (struct corredor* nuevoCorredor);
 void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
-void* pista(void* );
 void crearBox();
-void* accionBox(void* );
 /*void aniadirListaBoxes (struct box* nuevoBox);*/
-void aniadirListaEsperaBoxes (struct corredor* nuevoCorredor);
-struct corredor* atenderCorredor();
+void* accionBox(void* );
 void sePuedeCerrarBox();
 void abrirBox();
 void cerrarBox();
-
-void* juez (void*);
+void aniadirListaEsperaBoxes (struct corredor* nuevoCorredor);
+struct corredor* atenderCorredor();
+void* pista(void* );
 void crearJuez();
-
+void* juez (void*);
+void compruebaCorredorSancion();
 void writeLogMessage(char *id, char *msg);
 void finPrograma();
-void aumentarCorredores();
-void aumentarBoxes ();
+
 
 int main(int argc, char** argv){
 
@@ -258,7 +262,7 @@ int main(int argc, char** argv){
 
   signal(SIGUSR1, nuevoCorredor);
   signal(SIGUSR2, aumentarCorredores);
-  signal(SIGVTALRM, aumentarBoxes);
+  signal(SIGALRM, aumentarBoxes);
   srand(time(NULL));
 
   signal(SIGINT, finPrograma);
@@ -326,12 +330,12 @@ void aumentarCorredores () {
 
 void aumentarBoxes () {
 
-  signal(SIGVTALRM, SIG_IGN);
+  signal(SIGALRM, SIG_IGN);
 
   maxBoxes++;
-  /*AÑADIR UN NUEVO BOX A LA LISTA*/
+  crearBox();
 
-  signal(SIGVTALRM, aumentarBoxes);
+  signal(SIGALRM, aumentarBoxes);
 
 }
 
@@ -425,7 +429,7 @@ void nuevoCorredor(){
       pthread_t hcorredor;
       struct corredor* nCorredor;
       char id[13];
-      int numero;
+      //int numero;
       char c_numero[3];
 
       nCorredor = (struct corredor*)malloc(sizeof(struct corredor));
@@ -470,7 +474,7 @@ void crearBox () {
     pthread_t hBox;
     struct box* nBox;
     char id[13];
-    int numero;
+    //int numero;
     char box_numero[3];
 
     nBox = (struct box*)malloc(sizeof(struct box));
@@ -705,7 +709,8 @@ void *pista(void* parametro){
         printf("El corredor %s tiene problemas graves y ha abandonado\n",nCorredor->id);
         eliminarCorredor(nCorredor);
         cantidadDeCorredoresActivos--;
-        pthread_exit((void*) "me mori");
+        pthread_exit(NULL);
+
       }
     }
     numeroDeVueltas++;
@@ -747,13 +752,9 @@ void *pista(void* parametro){
   eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
 
-}
-  /*
-   *Parte del programa que penaliza a los corredores
-   *Dormir en cuanto el juez despierte bloquear el mutex, crear el numero aleatorio
-   *esperar a que todos los corredores estén esperando y que cada corredor compruebe si es su número.
-   */
+  pthread_exit(NULL);
 
+}
 
 /*Comportamiento del juez*/
 
@@ -763,11 +764,19 @@ void crearJuez(){
   if (pthread_create (&hjuez, NULL, juez, NULL) != 0){
     printf("Error al crear el hilo juez %s\n ",strerror (errno));
   }
-  	else ("Se ha creado el juez: \n");
+  	else  {
 
+      printf("Se ha creado el juez.\n");
+
+    }
 
 }
 
+/*
+ *Parte del programa que penaliza a los corredores
+ *Dormir en cuanto el juez despierte bloquear el mutex, crear el numero aleatorio
+ *esperar a que todos los corredores estén esperando y que cada corredor compruebe si es su número.
+ */
 void *juez(void* parametro){
  while(1){
 
