@@ -6,6 +6,13 @@
  * @author Juan Carlos Robles Fernandez
  */
 
+/**
+ * Para aumentar el numero maximo de corredores con el programa en ejecucion se ha modificado
+ * la señal SIGUSR2.
+ * Para aumentar el numero maximo de boxes con el programa en ejecucion se ha modificado la
+ * la señal SIGVTALRM.
+ */
+
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
@@ -14,6 +21,7 @@
 #include <time.h>
 #include <string.h>
 #include <errno.h>
+
 
 /**
  * mejorTiempo es la estructura que contiene la mejor marca de toda la carrera.
@@ -140,6 +148,30 @@ int numeroDeBox;
  */
 int cantidadDeCorredoresActivos;
 
+
+/*
+ *Obtiene el valor del corredor que será penalizado.
+ */
+char penalizador[13];
+
+
+
+/*********************/
+/********************/
+
+int variable_comprobadora;
+
+/*******************/
+/******************/
+
+/*Variable para que se comiencen a probar si ha sido sancionado.*/
+
+int corredorCompruebaEntrada;
+int sancionJuez;
+/*El juez está listo para sancionar.*/
+
+/*Se crea la condicion del hilo.*/
+pthread_cond_t condicion;
 /**
  *Indica el numero de boxes cerrados
  */
@@ -154,6 +186,17 @@ int seCierra;
  * mutexListaCorredores controla las modificaciones de la lista
  */
 pthread_mutex_t mutexListaCorredores;
+pthread_mutex_t mutexJuez;
+
+/**
+ * mutexLog controla las entradas en el log.
+ */
+pthread_mutex_t mutexLog;
+
+/**
+ * puntero que apunta al fichero registroTiempos.log
+ */
+FILE *logFile;
 
 /**
  * mutexListaBoxes controla las modificaciones de la lista
@@ -190,11 +233,19 @@ void sePuedeCerrarBox();
 void abrirBox();
 void cerrarBox();
 
+void* juez (void*);
+void crearJuez();
+
+void writeLogMessage(char *id, char *msg);
+void finPrograma();
+void aumentarCorredores();
+void aumentarBoxes ();
+
 int main(int argc, char** argv){
 
   if (argc != 3) {
 
-    printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes");
+    printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes\n");
     exit(1);
   }
 
@@ -206,9 +257,17 @@ int main(int argc, char** argv){
   }
 
   signal(SIGUSR1, nuevoCorredor);
+  signal(SIGUSR2, aumentarCorredores);
+  signal(SIGVTALRM, aumentarBoxes);
   srand(time(NULL));
 
+  signal(SIGINT, finPrograma);
+
   init();
+
+
+  crearJuez();
+
 
   while(1){
 
@@ -247,6 +306,32 @@ void init () {
   for(i=0;i<maxBoxes;i++){
     crearBox();
   }
+
+  /**
+  * borra el fichero registroTiempos, si existe.
+  */
+  remove("registroTiempos.log");
+
+}
+
+void aumentarCorredores () {
+
+  signal(SIGUSR2, SIG_IGN);
+
+  maxCorredores++;
+
+  signal(SIGUSR2, aumentarCorredores);
+
+}
+
+void aumentarBoxes () {
+
+  signal(SIGVTALRM, SIG_IGN);
+
+  maxBoxes++;
+  /*AÑADIR UN NUEVO BOX A LA LISTA*/
+
+  signal(SIGVTALRM, aumentarBoxes);
 
 }
 
@@ -364,7 +449,10 @@ void nuevoCorredor(){
         numeroDeCorredor++;
         cantidadDeCorredoresActivos++;
         aniadirCorredor(nCorredor);
-        printf("%s ha entrado en pista.\n", nCorredor->id);
+        //printf("%s ha entrado en pista.\n", nCorredor->id);
+
+
+        writeLogMessage(nCorredor->id, "Entra en el circuito");
 
       }
 
@@ -592,17 +680,21 @@ void *pista(void* parametro){
 
   while (numeroDeVueltas < NUM_VUELTAS) {
 
-    tiempoPorVuelta = rand()%3+2;
+    tiempoPorVuelta = rand()%4+2;
     tiempoTotal = tiempoTotal + tiempoPorVuelta;
     sleep(tiempoPorVuelta);
 
     entrarEnBoxes = rand()%2;
     if (entrarEnBoxes == 1) {
 
+
       // añadimos a la cola de boxes
       aniadirListaEsperaBoxes(nCorredor);
       nCorredor->enBoxes=1;
       while(nCorredor->enBoxes==1) {
+
+      /* añadimos a la cola de boxes*/
+
 
         sleep(1);
 
@@ -617,7 +709,29 @@ void *pista(void* parametro){
       }
     }
     numeroDeVueltas++;
+
+    // El corredor termina una vuelta.
+
+    char mensaje[50], tiempoVuelta[50], numVuelta[50];
+
+    sprintf(numVuelta, "%d", numeroDeVueltas);
+    sprintf(tiempoVuelta, "%d", tiempoPorVuelta);
+
+    strcpy(mensaje, "Termina la vuelta ");
+    strcat(mensaje, numVuelta);
+    strcat(mensaje, " en ");
+    strcat(mensaje, tiempoVuelta);
+    strcat(mensaje, " segundos.");
+
+    writeLogMessage(nCorredor->id, mensaje);
+
+
   }
+
+   // El corredor termina la carrera (da 5 vueltas)
+
+   writeLogMessage(nCorredor->id, "Abandona el circuito");
+
 
   if (tiempoTotal < mejorTiempo.tiempo) {
 
@@ -628,8 +742,122 @@ void *pista(void* parametro){
 
   }
 
-  printf("%s ha acabado la carrera.\n", nCorredor->id);
+  //printf("%s ha acabado la carrera.\n", nCorredor->id);
+
   eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
+
+}
+  /*
+   *Parte del programa que penaliza a los corredores
+   *Dormir en cuanto el juez despierte bloquear el mutex, crear el numero aleatorio
+   *esperar a que todos los corredores estén esperando y que cada corredor compruebe si es su número.
+   */
+
+
+/*Comportamiento del juez*/
+
+void crearJuez(){
+  pthread_t hjuez;
+
+  if (pthread_create (&hjuez, NULL, juez, NULL) != 0){
+    printf("Error al crear el hilo juez %s\n ",strerror (errno));
+  }
+  	else ("Se ha creado el juez: \n");
+
+
+}
+
+void *juez(void* parametro){
+ while(1){
+
+ 	struct corredor *aux;
+ 	/*Cada corredor comprueba si ha sido sancionado.*/
+ 	sancionJuez = 0;
+ 	corredorCompruebaEntrada = 0;
+
+
+ /*Se inicializan las cosas de inicializar*/
+
+  sleep(10);
+
+  pthread_cond_wait (&condicion, &mutexJuez);
+
+ /*int a = *(int*)parametro;*/
+  int enteroConvertible = rand()%cantidadDeCorredoresActivos+1;
+  int i;
+
+  /*recorres lista*/
+
+  aux=listaCorredores.cabeza;
+  for(i=1;i<cantidadDeCorredoresActivos;i++){
+    aux=aux->siguiente;
+
+  }
+  variable_comprobadora = aux->numero;
+
+  printf("El juez sanciona al corredor: %s", aux->id);
+
+  }
+}
+
+
+void compruebaCorredorSancion(){
+	pthread_mutex_lock(&mutexJuez);
+
+
+	if (++corredorCompruebaEntrada >= cantidadDeCorredoresActivos){
+		pthread_cond_signal (&condicion);
+	}
+	/*Los corredores comprueban si su número coincide con el que ha
+	 *sancionado el juez, de ser así el corredor que ha sido sancionado tendrá dormir tres segundos*/
+
+		pthread_mutex_unlock (&mutexJuez);
+}
+
+
+void writeLogMessage(char *id, char *msg) {
+
+   pthread_mutex_lock(&mutexLog);
+
+   // Calculamos la hora actual
+   time_t now = time(0);
+   struct tm *tlocal = localtime(&now);
+   char stnow[19];
+   strftime(stnow, 19, "%d/%m/%y  %H:%M:%S", tlocal);
+
+   // Escribimos en el log
+   logFile = fopen("registroTiempos.log", "a");
+   fprintf(logFile, "[%s] %s: %s\n", stnow, id, msg);
+   fclose(logFile);
+
+   pthread_mutex_unlock(&mutexLog);
+
+}
+
+/**
+* finPrograma captura la señal SIGINT cuando se pulsa Ctrl+C y
+* escribe en el fichero de log el ganador de la carrera y el número de corredores
+* que han participado.
+*/
+void finPrograma() {
+
+  if (signal(SIGINT, finPrograma) == SIG_ERR) {
+    printf("Error en la llamada a signal\n");
+  }
+
+  if (numeroDeCorredor > 0) {
+
+    char corredores[15];
+    sprintf(corredores, "%d", (numeroDeCorredor-1));
+
+    writeLogMessage(mejorTiempo.idCorredor, "Ha ganado la carrera");
+    writeLogMessage("Número de corredores", corredores);
+
+  }
+  //printf("Ganador se la carrera: %s\n", mejorTiempo.idCorredor);
+  //printf("Número de corredires: %d\n", (numeroDeCorredor-1));
+
+  exit(0);
 
 }
