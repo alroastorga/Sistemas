@@ -324,6 +324,13 @@ void aumentarCorredores () {
 
   maxCorredores++;
 
+  char mensaje[50], numCorredores[5];
+  strcpy(mensaje, "Se ha modificado el nº de corredores a ");
+  sprintf(numCorredores, "%d", maxCorredores);
+  strcat(mensaje, numCorredores);
+
+  writeLogMessage("Mensaje", mensaje);
+
   signal(SIGUSR2, aumentarCorredores);
 
 }
@@ -333,6 +340,14 @@ void aumentarBoxes () {
   signal(SIGALRM, SIG_IGN);
 
   maxBoxes++;
+
+  char mensaje[50], numBoxes[5];
+  strcpy(mensaje, "Se ha modificado el nº de boxes a ");
+  sprintf(numBoxes, "%d", maxBoxes);
+  strcat(mensaje, numBoxes);
+
+  writeLogMessage("Mensaje", mensaje);
+
   crearBox();
 
   signal(SIGALRM, aumentarBoxes);
@@ -453,8 +468,8 @@ void nuevoCorredor(){
         numeroDeCorredor++;
         cantidadDeCorredoresActivos++;
         aniadirCorredor(nCorredor);
-        //printf("%s ha entrado en pista.\n", nCorredor->id);
 
+        //printf("%s ha entrado en pista.\n", nCorredor->id);
 
         writeLogMessage(nCorredor->id, "Entra en el circuito");
 
@@ -544,21 +559,36 @@ void *accionBox(void* parametro){
       sleep(1);
     }else{
         nCorredor = atenderCorredor();
-        printf("%s ha entrado en boxes\n", nCorredor->id);
+
+        //printf("%s ha entrado en boxes\n", nCorredor->id);
+        char mensaje[40];
+        strcpy(mensaje, "Entra en el ");
+        strcat(mensaje, nBox->id);
+        writeLogMessage(nCorredor->id, mensaje);
+
         corredoresAtendidos++;
         tiempoEnBoxes = rand()%3+1;
         sleep(tiempoEnBoxes);
         nCorredor->enBoxes = 0;
+
+        char mensaje2[40];
+        strcpy(mensaje2, "Sale del ");
+        strcat(mensaje2, nBox->id);
+        writeLogMessage(nCorredor->id, mensaje2);
+
         sePuedeCerrarBox();
         //printf("%s ha atendido a %s\n", nBox->id, nCorredor->id);
         //printf("%s ha atendido %d corredores\n", nBox->id, corredoresAtendidos);
         if((corredoresAtendidos>=3)&&(seCierra==1)){
-          printf("%s ha cerrado\n", nBox->id);
+          //printf("%s ha cerrado\n", nBox->id);
+          writeLogMessage(nBox->id, "Cierra");
+
           cerrarBox();
           sleep(20);
           corredoresAtendidos = 0;
           abrirBox();
-          printf("%s ha abierto\n", nBox->id);
+          //printf("%s ha abierto\n", nBox->id);
+          writeLogMessage(nBox->id, "Abre");
         }
     }
   }
@@ -691,7 +721,6 @@ void *pista(void* parametro){
     entrarEnBoxes = rand()%2;
     if (entrarEnBoxes == 1) {
 
-
       // añadimos a la cola de boxes
       aniadirListaEsperaBoxes(nCorredor);
       nCorredor->enBoxes=1;
@@ -699,14 +728,14 @@ void *pista(void* parametro){
 
       /* añadimos a la cola de boxes*/
 
-
         sleep(1);
 
       }
 
       tieneProblemasGraves = rand()%10+1;
       if(tieneProblemasGraves>7){
-        printf("El corredor %s tiene problemas graves y ha abandonado\n",nCorredor->id);
+        //printf("El corredor %s tiene problemas graves y ha abandonado\n",nCorredor->id);
+        writeLogMessage(nCorredor->id, "Abandona la carrera por problemas graves");
         eliminarCorredor(nCorredor);
         cantidadDeCorredoresActivos--;
         pthread_exit(NULL);
@@ -729,6 +758,7 @@ void *pista(void* parametro){
     strcat(mensaje, " segundos.");
 
     writeLogMessage(nCorredor->id, mensaje);
+    //printf("%s: %s\n", nCorredor->id, mensaje);
 
     pthread_exit(NULL);
 
@@ -736,7 +766,7 @@ void *pista(void* parametro){
 
    // El corredor termina la carrera (da 5 vueltas)
 
-   writeLogMessage(nCorredor->id, "Abandona el circuito");
+    writeLogMessage(nCorredor->id, "Termina la carrera");
 
 
   if (tiempoTotal < mejorTiempo.tiempo) {
@@ -744,7 +774,14 @@ void *pista(void* parametro){
     strcpy(mejorTiempo.idCorredor, nCorredor->id);
     mejorTiempo.tiempo = tiempoTotal;
 
-    printf("%s ha mejorado la marca con %d segundos\n", mejorTiempo.idCorredor, mejorTiempo.tiempo);
+    char mensaje[50], tiempo[5];
+    strcpy(mensaje, "Ha mejorado la marca con ");
+    sprintf(tiempo, "%d", mejorTiempo.tiempo);
+    strcat(mensaje, tiempo);
+    strcat(mensaje, " segundos");
+
+    //printf("%s ha mejorado la marca con %d segundos\n", mejorTiempo.idCorredor, mejorTiempo.tiempo);
+    writeLogMessage(mejorTiempo.idCorredor, mensaje);
 
   }
 
@@ -806,7 +843,8 @@ void *juez(void* parametro){
   }
   variable_comprobadora = aux->numero;
 
-  printf("El juez sanciona al corredor: %s", aux->id);
+  //printf("El juez sanciona al corredor: %s", aux->id);
+  writeLogMessage(aux->id, "Ha sido sancionado por el juez");
 
   }
 }
@@ -825,7 +863,11 @@ void compruebaCorredorSancion(){
 		pthread_mutex_unlock (&mutexJuez);
 }
 
-
+/**
+* Funcion para escribir en el fichero de logs.
+* char *id: cadena que repreenta el id del corredor o del box.
+* char *msg: mensaje que indica la accion realizada.
+*/
 void writeLogMessage(char *id, char *msg) {
 
    pthread_mutex_lock(&mutexLog);
@@ -861,12 +903,12 @@ void finPrograma() {
     char corredores[15];
     sprintf(corredores, "%d", (numeroDeCorredor-1));
 
+    //printf("Ganador se la carrera: %s\n", mejorTiempo.idCorredor);
+    //printf("Número de corredires: %d\n", (numeroDeCorredor-1));
     writeLogMessage(mejorTiempo.idCorredor, "Ha ganado la carrera");
     writeLogMessage("Número de corredores", corredores);
 
   }
-  //printf("Ganador se la carrera: %s\n", mejorTiempo.idCorredor);
-  //printf("Número de corredires: %d\n", (numeroDeCorredor-1));
 
   exit(0);
 
