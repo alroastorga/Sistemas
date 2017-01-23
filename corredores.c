@@ -244,16 +244,6 @@ int main(int argc, char** argv){
 
   }
 
-<<<<<<< HEAD
-  signal(SIGUSR1, nuevoCorredor);
-  signal(SIGUSR2, aumentarCorredores);
-  signal(SIGALRM, aumentarBoxes);
-  if  (signal(SIGINT, finPrograma) == SIG_ERR) {
-
-    printf("Error: %s", strerror(errno));
-
-  }
-=======
   if (signal(SIGUSR1, nuevoCorredor) == SIG_ERR) {
     printf("Error: %s\n", strerror(errno));
   }
