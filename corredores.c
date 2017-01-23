@@ -47,6 +47,7 @@ struct corredor {
   char id[13];
   int numero;
   int enBoxes;
+  int tiempoPorVuelta;
   struct corredor* siguiente;
 
 } corredor;
@@ -91,18 +92,6 @@ struct esperaBoxes {
 
 } esperaBoxes;
 
-
-/**
- * listaBoxes lista de boxes creados
- * cabeza contiene la direccion de memoria del primer box.
- * cola contiene la direccion de memoria del ultimo box.
-
-struct listaBoxes {
-
-  struct box* cabeza;
-  struct box* cola;
-
-} listaBoxes;*/
 
 /**
  * listaEsperaBoxes lista de corredores que quieren parar en boxes.
@@ -203,11 +192,6 @@ pthread_mutex_t mutexLog;
 FILE *logFile;
 
 /**
- * mutexListaBoxes controla las modificaciones de la lista
-
-pthread_mutex_t mutexListaBoxes;*/
-
-/**
  * mutexListaEsperaBoxes controla las modificaciones de la lista
  */
 pthread_mutex_t mutexListaEsperaBoxes;
@@ -230,7 +214,6 @@ void aniadirCorredor (struct corredor* nuevoCorredor);
 void eliminarCorredor (struct corredor* corredorAEliminar);
 void nuevoCorredor();
 void crearBox();
-/*void aniadirListaBoxes (struct box* nuevoBox);*/
 void* accionBox(void* );
 void sePuedeCerrarBox();
 void abrirBox();
@@ -251,6 +234,7 @@ int main(int argc, char** argv){
 
     printf("Error. Debe ingresar los argumenos numero_maximo_de_corredores y numero_de_boxes\n");
     exit(1);
+
   }
 
   else {
@@ -274,15 +258,12 @@ int main(int argc, char** argv){
 
   if (signal(SIGINT, finPrograma) == SIG_ERR) {
     printf("Error: %s\n", strerror(errno));
-    //exit(-1);
   }
-
   srand(time(NULL));
 
   init();
 
   crearJuez();
-
 
   while(1){
 
@@ -310,8 +291,6 @@ void init () {
   seCierra = 1;
   listaCorredores.cabeza = NULL;
   listaCorredores.cola = NULL;
-  /*listaBoxes.cabeza = NULL;
-  listaBoxes.cola = NULL;*/
   listaEsperaBoxes.cabeza = NULL;
   listaEsperaBoxes.cola = NULL;
 
@@ -465,7 +444,6 @@ void nuevoCorredor(){
       pthread_t hcorredor;
       struct corredor* nCorredor;
       char id[13];
-      //int numero;
       char c_numero[3];
 
       nCorredor = (struct corredor*)malloc(sizeof(struct corredor));
@@ -533,37 +511,9 @@ void crearBox () {
     else {
     //printf("Box creado: %s\n ", nBox->id);
       numeroDeBox++;
-    //  aniadirListaBoxes(nBox);
 
     }
 }
-
-/**
- * aniadirListaBoxes añade en la cola cada box que se cree
-
-void aniadirListaBoxes (struct box* nuevoBox) {
-
-  pthread_mutex_lock(&mutexListaBoxes);
-
-  if (listaBoxes.cabeza == NULL) {
-
-    listaBoxes.cabeza = nuevoBox;
-    listaBoxes.cola = nuevoBox;
-    nuevoBox->siguiente = NULL;
-
-  }
-
-  else {
-
-    listaBoxes.cola->siguiente = nuevoBox;
-    listaBoxes.cola = nuevoBox;
-    nuevoBox->siguiente = NULL;
-
-  }
-  printf("%s añadido a listaBoxes\n", nuevoBox->id);
-  pthread_mutex_unlock(&mutexListaBoxes);
-
-}*/
 
 /**
  *
@@ -593,6 +543,7 @@ void *accionBox(void* parametro){
         tiempoEnBoxes = rand()%3+1;
         sleep(tiempoEnBoxes);
         nCorredor->enBoxes = 0;
+        nCorredor->tiempoPorVuelta = tiempoEnBoxes+ + nCorredor-> tiempoPorVuelta;
 
         char mensaje2[40];
         strcpy(mensaje2, "Sale del ");
@@ -717,13 +668,6 @@ void *pista(void* parametro){
   int numeroDeVueltas = 0;
 
   /**
-   * Contiene el tiempo que tarda en dar la vuelta en la que esta actualmente.
-   * El tiempo de vuelta por pista se calcula cogiendo un numero aleatorio entre 2 y 5.
-   * Una vez acabada la carrera, se mira si ha rebajado la marca establecida
-   */
-  int tiempoPorVuelta = 0;
-
-  /**
    * tiempoTotal contiene el tiempo que ha tardado el corredor en dar las 5 vueltas.
    */
   int tiempoTotal = 0;
@@ -737,9 +681,9 @@ void *pista(void* parametro){
 
   while (numeroDeVueltas < NUM_VUELTAS) {
 
-    tiempoPorVuelta = rand()%4+2;
-    tiempoTotal = tiempoTotal + tiempoPorVuelta;
-    sleep(tiempoPorVuelta);
+    nCorredor->tiempoPorVuelta = rand()%4+2;
+    tiempoTotal = tiempoTotal + nCorredor->tiempoPorVuelta;
+    sleep(nCorredor->tiempoPorVuelta);
 
     entrarEnBoxes = rand()%2;
     if (entrarEnBoxes == 1) {
@@ -748,8 +692,6 @@ void *pista(void* parametro){
       aniadirListaEsperaBoxes(nCorredor);
       nCorredor->enBoxes=1;
       while(nCorredor->enBoxes==1) {
-
-      /* añadimos a la cola de boxes*/
 
         sleep(1);
 
@@ -772,7 +714,7 @@ void *pista(void* parametro){
     char mensaje[50], tiempoVuelta[50], numVuelta[50];
 
     sprintf(numVuelta, "%d", numeroDeVueltas);
-    sprintf(tiempoVuelta, "%d", tiempoPorVuelta);
+    sprintf(tiempoVuelta, "%d", nCorredor->tiempoPorVuelta);
 
     strcpy(mensaje, "Termina la vuelta ");
     strcat(mensaje, numVuelta);
