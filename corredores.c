@@ -138,18 +138,10 @@ int numeroDeBox;
  */
 int cantidadDeCorredoresActivos;
 
-/*
- *Obtiene el valor del corredor que será penalizado.
+/**
+ * corredorSancionado contiene el numero del corredor que ha sancionado el juez.
  */
-char penalizador[13];
-
-/*********************/
-/********************/
-
 int corredorSancionado;
-
-/*******************/
-/******************/
 
 /*Variable para que se comiencen a probar si ha sido sancionado.*/
 
@@ -280,7 +272,7 @@ int main(int argc, char** argv){
  */
 void init () {
 
-  int i;
+  corredorSancionado = 0;
   numeroDeCorredor = 1;
   numeroDeBox = 1;
   cantidadDeCorredoresActivos = 0;
@@ -293,8 +285,9 @@ void init () {
   listaEsperaBoxes.cola = NULL;
 
   /*
-  *Creamos los boxes especificados (y los añade a listaboxes(no necesario))
+  *Creamos los boxes especificados
   */
+  int i;
   for(i=0;i<maxBoxes;i++){
     crearBox();
   }
@@ -466,8 +459,6 @@ void nuevoCorredor(){
         cantidadDeCorredoresActivos++;
         aniadirCorredor(nCorredor);
 
-        //printf("%s ha entrado en pista.\n", nCorredor->id);
-
         writeLogMessage(nCorredor->id, "Entra en el circuito");
 
       }
@@ -488,7 +479,6 @@ void crearBox () {
     pthread_t hBox;
     struct box* nBox;
     char id[13];
-    //int numero;
     char box_numero[3];
 
     nBox = (struct box*)malloc(sizeof(struct box));
@@ -507,7 +497,7 @@ void crearBox () {
     }
 
     else {
-    //printf("Box creado: %s\n ", nBox->id);
+
       numeroDeBox++;
 
     }
@@ -531,11 +521,10 @@ void *accionBox(void* parametro){
     }else{
         nCorredor = atenderCorredor();
 
-        //printf("%s ha entrado en boxes\n", nCorredor->id);
         char mensaje[40];
-        strcpy(mensaje, "Entra en el ");
-        strcat(mensaje, nBox->id);
-        writeLogMessage(nCorredor->id, mensaje);
+        strcpy(mensaje, "Entra ");
+        strcat(mensaje, nCorredor->id);
+        writeLogMessage(nBox->id, mensaje);
 
         corredoresAtendidos++;
         tiempoEnBoxes = rand()%3+1;
@@ -549,17 +538,16 @@ void *accionBox(void* parametro){
         writeLogMessage(nCorredor->id, mensaje2);
 
         sePuedeCerrarBox();
-        //printf("%s ha atendido a %s\n", nBox->id, nCorredor->id);
-        //printf("%s ha atendido %d corredores\n", nBox->id, corredoresAtendidos);
+  
         if((corredoresAtendidos>=3)&&(seCierra==1)){
-          //printf("%s ha cerrado\n", nBox->id);
+          
           writeLogMessage(nBox->id, "Cierra");
 
           cerrarBox();
           sleep(20);
           corredoresAtendidos = 0;
           abrirBox();
-          //printf("%s ha abierto\n", nBox->id);
+          
           writeLogMessage(nBox->id, "Abre");
         }
     }
@@ -626,8 +614,6 @@ void aniadirListaEsperaBoxes (struct corredor* nuevoCorredor) {
 
   }
 
-  //printf("%s quiere entrar en boxes\n", nesperaboxes->corredorEnEspera->id);
-
   pthread_mutex_unlock(&mutexListaEsperaBoxes);
 
 }
@@ -686,7 +672,6 @@ void *pista(void* parametro){
     entrarEnBoxes = rand()%2;
     if (entrarEnBoxes == 1) {
 
-      // añadimos a la cola de boxes
       aniadirListaEsperaBoxes(nCorredor);
       nCorredor->enBoxes=1;
       while(nCorredor->enBoxes==1) {
@@ -709,7 +694,8 @@ void *pista(void* parametro){
     }
 
  if (compruebaCorredorSancion()==1) {
-
+      /*Nos aseguramos de que todos los corredores comprueban
+      si ya esta la sancion lista*/
       while (corredorSancionado==0) {
 
         sleep(1);
@@ -717,23 +703,18 @@ void *pista(void* parametro){
       }
 
     }
-    /*SI NOS HA SANCIONADO*/
 
     if ( corredorSancionado == nCorredor->numero) {
 
-      //printf("Corredor_%d espero 3 segundos.\n", nCorredor->numero);
-      /*ESPERAMOS 3 SEGUNDOS*/
       sleep(3);
-      /*SUMAMOS LA SANCION AL TIEMPO DE VUELTA*/
-      nCorredor -> tiempoPorVuelta = nCorredor -> tiempoPorVuelta+3;
-      /*INDICAMOS QUE YA SE HA CUMPLIDO LA SANCION*/
+      nCorredor->tiempoPorVuelta = nCorredor->tiempoPorVuelta+3;
       corredorSancionado = 0;
 
     }
 
     numeroDeVueltas++;
 
-    // El corredor termina una vuelta.
+    /*El corredor termina una vuelta.*/
 
     char mensaje[50], tiempoVuelta[50], numVuelta[50];
 
@@ -747,11 +728,11 @@ void *pista(void* parametro){
     strcat(mensaje, " segundos.");
 
     writeLogMessage(nCorredor->id, mensaje);
-    //printf("%s: %s\n", nCorredor->id, mensaje);
+    
 
   }
 
-   // El corredor termina la carrera (da 5 vueltas)
+   /*El corredor termina la carrera (da 5 vueltas)*/
 
     writeLogMessage(nCorredor->id, "Termina la carrera");
 
@@ -768,7 +749,6 @@ void *pista(void* parametro){
     strcat(mensaje, tiempo);
     strcat(mensaje, " segundos");
 
-    //printf("%s ha mejorado la marca con %d segundos\n", mejorTiempo.idCorredor, mejorTiempo.tiempo);
     writeLogMessage(mejorTiempo.idCorredor, mensaje);
 
   }
@@ -788,11 +768,6 @@ void crearJuez(){
   if (pthread_create (&hjuez, NULL, sancionar, NULL) != 0){
     printf("Error al crear el hilo juez %s\n ",strerror (errno));
   }
-  	else  {
-
-      //printf("Se ha creado el juez.\n");
-
-    }
 
 }
 
@@ -805,23 +780,15 @@ void *sancionar(void* parametro){
  while(1){
 
  	struct corredor *aux;
- 	/*Cada corredor comprueba si ha sido sancionado.*/
+
  	sancionJuez = 0;
  	corredorCompruebaEntrada = 0;
 
-
- /*Se inicializan las cosas de inicializar*/
-
   sleep(10);
 
-  pthread_cond_wait (&condicion, &mutexJuez);
-
- /*int a = *(int*)parametro;*/
-  int corredorASancionar = rand()%cantidadDeCorredoresActivos+1;
-
   sancionJuez=1;
-  /*recorrer lista*/
-
+  pthread_cond_wait (&condicion, &mutexJuez);
+  int corredorASancionar = rand()%cantidadDeCorredoresActivos+1;
   aux=listaCorredores.cabeza;
 
   int i;
@@ -829,32 +796,36 @@ void *sancionar(void* parametro){
     aux=aux->siguiente;
 
   }
+
   corredorSancionado = aux->numero;
-  //printf("El corredor %s ha sido sancionado\n",aux->id);
-  writeLogMessage(aux->id, "Ha sido sancionado");
+
+  char mensaje[50];
+  strcpy(mensaje, aux->id);
+  strcat(mensaje, " ha sido sancionado");
+  writeLogMessage("Juez",mensaje);
 
   }
 }
 
+
 int compruebaCorredorSancion(){
-	pthread_mutex_lock(&mutexJuez);
+	
 	int haySancion = 0;
 
 	if(sancionJuez == 1){
-		pthread_mutex_lock(&mutexJuez);
-	}
+		
+    pthread_mutex_lock(&mutexJuez);
 
-	if (++corredorCompruebaEntrada >= cantidadDeCorredoresActivos){
-		pthread_cond_signal (&condicion);
-		sancionJuez = 1;
-	}
-	/*Los corredores comprueban si su número coincide con el que ha
-	 *sancionado el juez, de ser así el corredor que ha sido sancionado tendrá dormir tres segundos*/
-
+	 if (++corredorCompruebaEntrada >= cantidadDeCorredoresActivos){
+		  pthread_cond_signal (&condicion);
+		  haySancion = 1;
+	 }
 
 		pthread_mutex_unlock (&mutexJuez);
 
-		return sancionJuez;
+  }
+
+		return haySancion;
 
 }
 
