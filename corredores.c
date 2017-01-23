@@ -138,13 +138,10 @@ int numeroDeBox;
  */
 int cantidadDeCorredoresActivos;
 
-
 /*
  *Obtiene el valor del corredor que será penalizado.
  */
 char penalizador[13];
-
-
 
 /*********************/
 /********************/
@@ -257,10 +254,6 @@ int main(int argc, char** argv){
   }
 
   if (signal(SIGINT, finPrograma) == SIG_ERR) {
-    printf("Error: %s\n", strerror(errno));
-  }
-
-  if (signal(SIGALRM, aumentarBoxes) == SIG_ERR) {
     printf("Error: %s\n", strerror(errno));
   }
 
@@ -715,11 +708,6 @@ void *pista(void* parametro){
       }
     }
 
-//////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////
-    ////////////////////////////////////////
-    ///////////////////////////////////////
-    /////////////////////////////////////
  if (compruebaCorredorSancion()==1) {
 
       while (corredorSancionado==0) {
@@ -733,7 +721,7 @@ void *pista(void* parametro){
 
     if ( corredorSancionado == nCorredor->numero) {
 
-      printf("Corredor_%d espero 3 segundos.\n", nCorredor->numero);
+      //printf("Corredor_%d espero 3 segundos.\n", nCorredor->numero);
       /*ESPERAMOS 3 SEGUNDOS*/
       sleep(3);
       /*SUMAMOS LA SANCION AL TIEMPO DE VUELTA*/
@@ -742,12 +730,7 @@ void *pista(void* parametro){
       corredorSancionado = 0;
 
     }
-////////////////////////////////////////////
-////////////////////////////////////////////
-///////////////////////////////////////////
-//////////////////////////////////////////
-///////////////////////////////////////////
-//////////////////////////////////////////
+
     numeroDeVueltas++;
 
     // El corredor termina una vuelta.
@@ -835,25 +818,23 @@ void *sancionar(void* parametro){
 
  /*int a = *(int*)parametro;*/
   int corredorASancionar = rand()%cantidadDeCorredoresActivos+1;
-  
+
   sancionJuez=1;
-  /*recorres lista*/
+  /*recorrer lista*/
 
   aux=listaCorredores.cabeza;
-  
+
   int i;
   for(i=1;i<corredorASancionar;i++){
     aux=aux->siguiente;
 
   }
   corredorSancionado = aux->numero;
-  printf("El corredor %s ha sido sancionado\n",aux->id);
-  //printf("El juez sanciona al corredor: %s", aux->id);
-  writeLogMessage(aux->id, "Ha sido sancionado por el juez");
+  //printf("El corredor %s ha sido sancionado\n",aux->id);
+  writeLogMessage(aux->id, "Ha sido sancionado");
 
   }
 }
-
 
 int compruebaCorredorSancion(){
 	pthread_mutex_lock(&mutexJuez);
@@ -876,7 +857,7 @@ int compruebaCorredorSancion(){
 		return sancionJuez;
 
 }
-	
+
 /**
 * Funcion para escribir en el fichero de logs.
 * char *id: cadena que repreenta el id del corredor o del box.
