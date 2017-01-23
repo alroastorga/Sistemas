@@ -260,15 +260,26 @@ int main(int argc, char** argv){
 
   }
 
-  signal(SIGUSR1, nuevoCorredor);
-  signal(SIGUSR2, aumentarCorredores);
-  signal(SIGALRM, aumentarBoxes);
+  if (signal(SIGUSR1, nuevoCorredor) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
+
+  if (signal(SIGUSR2, aumentarCorredores) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
+
+  if (signal(SIGALRM, aumentarBoxes) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
+
+  if (signal(SIGINT, finPrograma) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+    //exit(-1);
+  }
+
   srand(time(NULL));
 
-  signal(SIGINT, finPrograma);
-
   init();
-
 
   crearJuez();
 
@@ -294,7 +305,7 @@ void init () {
   numeroDeCorredor = 1;
   numeroDeBox = 1;
   cantidadDeCorredoresActivos = 0;
-  mejorTiempo.tiempo = 100;
+  mejorTiempo.tiempo = 1000;
   numeroDeBoxesCerrados = 0;
   seCierra = 1;
   listaCorredores.cabeza = NULL;
@@ -320,7 +331,9 @@ void init () {
 
 void aumentarCorredores () {
 
-  signal(SIGUSR2, SIG_IGN);
+  if (signal(SIGUSR2, SIG_IGN) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
 
   maxCorredores++;
 
@@ -331,13 +344,17 @@ void aumentarCorredores () {
 
   writeLogMessage("Mensaje", mensaje);
 
-  signal(SIGUSR2, aumentarCorredores);
+  if (signal(SIGUSR2, aumentarCorredores) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
 
 }
 
 void aumentarBoxes () {
 
-  signal(SIGALRM, SIG_IGN);
+  if (signal(SIGALRM, SIG_IGN) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
 
   maxBoxes++;
 
@@ -350,7 +367,9 @@ void aumentarBoxes () {
 
   crearBox();
 
-  signal(SIGALRM, aumentarBoxes);
+  if (signal(SIGALRM, aumentarBoxes) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
 
 }
 
@@ -437,7 +456,9 @@ void eliminarCorredor (struct corredor* corredorAEliminar) {
  */
 void nuevoCorredor(){
 
-  signal(SIGUSR1, SIG_IGN);
+  if (signal(SIGUSR1, SIG_IGN) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
 
     if (cantidadDeCorredoresActivos < maxCorredores) {
 
@@ -477,7 +498,9 @@ void nuevoCorredor(){
 
     }
 
-  signal(SIGUSR1, nuevoCorredor);
+  if (signal(SIGUSR1, nuevoCorredor) == SIG_ERR) {
+    printf("Error: %s", strerror(errno));
+  }
 
 }
 
@@ -893,7 +916,8 @@ void writeLogMessage(char *id, char *msg) {
 void finPrograma() {
 
   if (signal(SIGINT, finPrograma) == SIG_ERR) {
-    printf("Error en la llamada a signal\n");
+    printf("Error: %s\n", strerror(errno));
+    exit(-1);
   }
 
   if (numeroDeCorredor > 0) {
