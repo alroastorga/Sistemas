@@ -704,8 +704,10 @@ void *pista(void* parametro){
 
       tieneProblemasGraves = rand()%10+1;
       if(tieneProblemasGraves>7){
-        //printf("El corredor %s tiene problemas graves y ha abandonado\n",nCorredor->id);
+
         writeLogMessage(nCorredor->id, "Abandona la carrera por problemas graves");
+        printf("%s: Abandona la carrera por problemas graves\n",nCorredor->id);
+
         eliminarCorredor(nCorredor);
         cantidadDeCorredoresActivos--;
         pthread_exit(NULL);
@@ -736,6 +738,7 @@ void *pista(void* parametro){
 
     writeLogMessage(nCorredor->id, "Termina la carrera");
 
+    printf("%s: ha acabado la carrera.\n", nCorredor->id);
 
   if (tiempoTotal < mejorTiempo.tiempo) {
 
@@ -752,8 +755,6 @@ void *pista(void* parametro){
     writeLogMessage(mejorTiempo.idCorredor, mensaje);
 
   }
-
-  //printf("%s ha acabado la carrera.\n", nCorredor->id);
 
   eliminarCorredor(nCorredor);
   cantidadDeCorredoresActivos--;
@@ -772,7 +773,7 @@ void crearJuez(){
   }
   	else  {
 
-      printf("Se ha creado el juez.\n");
+      //printf("Se ha creado el juez.\n");
 
     }
 
