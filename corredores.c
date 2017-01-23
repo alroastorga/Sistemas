@@ -259,6 +259,11 @@ int main(int argc, char** argv){
   if (signal(SIGINT, finPrograma) == SIG_ERR) {
     printf("Error: %s\n", strerror(errno));
   }
+
+  if (signal(SIGALRM, aumentarBoxes) == SIG_ERR) {
+    printf("Error: %s\n", strerror(errno));
+  }
+
   srand(time(NULL));
 
   init();
