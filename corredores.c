@@ -294,7 +294,7 @@ void init () {
   numeroDeCorredor = 1;
   numeroDeBox = 1;
   cantidadDeCorredoresActivos = 0;
-  mejorTiempo.tiempo = 100;
+  mejorTiempo.tiempo = 1000;
   numeroDeBoxesCerrados = 0;
   seCierra = 1;
   listaCorredores.cabeza = NULL;
