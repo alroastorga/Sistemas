@@ -247,8 +247,12 @@ int main(int argc, char** argv){
   signal(SIGUSR1, nuevoCorredor);
   signal(SIGUSR2, aumentarCorredores);
   signal(SIGALRM, aumentarBoxes);
+  if  (signal(SIGINT, finPrograma) == SIG_ERR) {
+
+    printf("Error: %s", strerror(errno));
+
+  }
   srand(time(NULL));
-  signal(SIGINT, finPrograma);
 
   init();
 
